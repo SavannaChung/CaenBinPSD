@@ -3,6 +3,8 @@
 tic;
 clear all; clc;
 
+Det="NPL";
+
     % variable
     
     % Identify the files for analysis
@@ -16,7 +18,7 @@ clear all; clc;
 
 iF=1; % loop through all files 
 %for iF=1:1:length(fileName)
-for iF=1:1:10
+for iF=1:1:5
         recordType = {'uint32' 'int16' 'uint32' 'int16'};
         recordLen = [4 2 4 2];
         R = cell(1,numel(recordType));
@@ -91,7 +93,7 @@ for iF=1:1:10
                 set(f1, 'PaperUnits', 'centimeter', 'PaperPosition', [0 0 15 10]);
                 % extract the run number from the fileName
                 runNo=string(extractBetween(fileName(iF), "Run__", "_ls"));
-                tSfileName=sprintf('timeStamp_%s', runNo);
+                tSfileName=sprintf('%s_timeStamp_%s', Det, runNo);
                 saveas(gcf, tSfileName, 'png');
                 
                 close all;
@@ -132,7 +134,7 @@ for iF=1:1:10
                  set(f_eH, 'PaperUnits', 'centimeter', 'PaperPosition', [0 0 15 10]);
                 % extract the run number from the fileName
                 %runNo=string(extractBetween(fileName(iF), "Run__", "_ls"));
-                eHfileName=sprintf('EnHist_%s', runNo);
+                eHfileName=sprintf('%s_EnHist_%s', Det, runNo);
                 saveas(gcf, eHfileName, 'fig');
                 
                 close all;
@@ -199,7 +201,7 @@ for iF=1:1:10
                 set(f_TDSP, 'PaperUnits', 'centimeter', 'PaperPosition', [0 0 15 10]);
                 % extract the run number from the fileName
                 %runNo=string(extractBetween(fileName(iF), "Run__", "_ls"));
-                eHfileName=sprintf('TDSP_%s', runNo);
+                eHfileName=sprintf('%s_TDSP_%s', Det, runNo);
                 saveas(gcf, eHfileName, 'fig');
                 
                 close all;

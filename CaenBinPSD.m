@@ -1,9 +1,8 @@
 %% This script is to read the binary file from DT5730 digitiser's output.
 
 tic;
-clear all; clc;
+clear ; clc;
 
-Det="NPL";
 
     % variable
     
@@ -11,6 +10,14 @@ Det="NPL";
     fileName=dir('*_ls_4*'); % get all the text files end with . =dir('Run34 **/*.txt');
     if isempty(fileName); fprintf(' >!>!>! error in identifying the txt files in this directory!\n');end
     fileName={fileName(~[fileName.isdir]).name};
+    
+    detNo=str2num(string(extractBetween(fileName(1), "ls_", ".dat")));
+    if detNo==4;
+        Det="2NPL";
+    elseif detNo==0;
+        Det="UCL";
+    end
+        
 
     % Read the binary file: 1.) convert the first six line into header. 2.)
     % Read the data into a four-column format. 
@@ -24,7 +31,7 @@ for iF=1:1:5
         R = cell(1,numel(recordType));
 
         %# read column-by-column
-        fid = fopen(fileName{1},'rb'); %fseek(fid, 1*6, 'bof');
+        fid = fopen(fileName{iF},'rb'); %fseek(fid, 1*6, 'bof');
         Header=fread(fid, 6, 'uint32'); % Read the first six headerss in the ls bin. file
         for i=1:numel(recordType) % Please find reference in https://stackoverflow.com/questions/8096702/reading-multiple-precision-binary-files-through-fread-in-matlab
             
@@ -46,7 +53,7 @@ for iF=1:1:5
         nQshort=Qshort(PSD>0 & PSD <1 & Qlong>0);
         nPSD=PSD(PSD>0 & PSD <1 & Qlong>0);      
         
-        clear('Qlong','Qshort','PSD');
+        clear('Qlong','Qshort','PSD', 'R');
 % Part1: *** ___ Calculate the acqTime ___ ***
          % Method 3: calculate the nCycle. tot_AcqT= nCycle*2^32
                 nCycle=0;
@@ -74,8 +81,23 @@ for iF=1:1:5
                 if nCycle==0;
                     AcqT3_s= (timeStamp(end)-timeStamp(1))/1E9;
                 else
-                    % nCycle * 2^32 + first cycle + last cycle
-                AcqT3_s(iF)= (double(nCycle-1)*(2^32-1) + (2^32-1- double(timeStamp(1))) + double(timeStamp(end)))/1E9;
+                    % nCycle * 2^32 + first cycle + last cycle (V1751)
+                % AcqT3_s(iF)= (double(nCycle-1)*(2^32-1) + (2^32-1- double(timeStamp(1))) + double(timeStamp(end)))/1E9;
+                    % nCycle * 2^32 + first cycle + last cycle (DT5730)
+                    % first cycle
+                    if timeStamp(2)>timeStamp(1)
+                        firstCycle= 2^31-1- double(timeStamp(1))*2;
+                    else
+                        firstCycle= 2;
+                    end
+                    
+                    if timeStamp(end)>timeStamp(end-1)
+                        lastCycle= double(timeStamp(end))*2;
+                    else
+                        lastCycle= 2;
+                    end
+                    
+                AcqT3_s(iF)= (double(nCycle-1)*(2^31-1)*2 + firstCycle + lastCycle)/1E9;
 
                 end
                 
@@ -146,8 +168,10 @@ for iF=1:1:5
                 foM_psd_xaxis=foM_psd_edge(1:end-1)+diff(foM_psd_edge)./2;
                 foM_hist=histcounts(nPSD, foM_psd_edge);
                 %gaussEqn='a*exp(-((x-b)/c).^2) +d';
-                foM_fit=fit(foM_psd_xaxis.', foM_hist.', 'gauss1');
+                foM_fit=fit(foM_psd_xaxis.', foM_hist.', 'gauss2');
                 yfoM_fit=feval(foM_fit, foM_psd_xaxis);
+                
+                gauFitCoeff=coeffvalues(foM_fit);
                 
                 f_foM= figure; 
                 histogram(nPSD, foM_psd_nBin); hold on
@@ -158,11 +182,22 @@ for iF=1:1:5
                 grid on;
                 set(gca, 'FontSize', 18, 'FontWeight', 'bold', 'LineWidth', 2);
                 pbaspect([1.5 1 1]);
+                str={strcat('Tot. evts= ', num2str(length(nQlong))), ...
+                     strcat('Mean1= ', num2str(round(gauFitCoeff(2),4)),'|',...
+                     'Mean2= ', num2str(round(gauFitCoeff(5),4)),'|'),...
+                     strcat('FWHM1= ', num2str(round(2.35*gauFitCoeff(3)/2, 4)),'|',...
+                     'FWHM2= ', num2str(round(2.35*gauFitCoeff(6)/2, 4)), '|'), ...
+                     strcat('Separation =',num2str(round(abs(minus(gauFitCoeff(2),gauFitCoeff(5))),4)), '|',...
+                     'FoM =',num2str(round(abs(minus(gauFitCoeff(2),gauFitCoeff(5)))/(2.35*(gauFitCoeff(3)+gauFitCoeff(6))/2),4)))
+                      };
+                     %strcat('FoM =',num2str(round(abs(minus(gauFitCoeff(2),gauFitCoeff(5)))/(2.35*(gauFitCoeff(3)+gauFitCoeff(6))/2),4)))};
+                %annotation(f_foM, 'textbox', [.5 .96 .1 .1], 'FitBoxToText', 'on', 'String', str , 'FontSize', 10, 'FontWeight', 'bold', 'BackgroundColor', 'w');
+                title(str, 'FontSize', 10)
+                %lgd=legend(str, 'Location','southoutside', 'FontSize', 10 );
                 
-
                 
                 close all;
-                clear('f_foM','eH*');
+                clear('f_foM','eH*', 'str', 'foM*', 'gauFitCoeff');
                 
 % Part4: *** ___ 2D scatter plot ___ ***
                 TD_nBin=500;   %% control the number of bins inbetween 0 and 1
@@ -205,13 +240,16 @@ for iF=1:1:5
                 saveas(gcf, eHfileName, 'fig');
                 
                 close all;
-                clear('f_TDSP','Data1','eHfileName','h1', 'hplot', 'hr1', 'xb', 'yb', 'str', 'TD_nBin');
+                clear('f_TDSP','Data1','eHfileName','h1', 'hplot', 'hr1', 'xb', 'yb', 'str', 'TD_nBin', 'nQlong', 'nQshort', 'nPSD');
                 
           
 % Part5: *** ___ Output the Acquisition time in a text file ___ ***
                 C=cat(2,fileName(1:length(AcqT3_s))', num2cell(round(AcqT3_s,1))' );
                 acqT_table=cell2table(C, 'VariableNames', {'fileName', 'AcqT3_s'});
-                writetable(acqT_table, 'Acq Time.txt', 'Delimiter', '\t');
-
+                acq_fN=sprintf('%s Acq Time.txt', Det);
+                writetable(acqT_table, acq_fN, 'Delimiter', '\t');
+                
+                runTime=round(toc);
+                fprintf('%d file done. runtTime=%d \n', iF, runTime);
                 iF=iF+1;     
 end

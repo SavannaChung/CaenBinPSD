@@ -7,7 +7,7 @@ clear ; clc;
     % variable
     
     % Identify the files for analysis
-    fileName=dir('*_ls_4*'); % get all the text files end with . =dir('Run34 **/*.txt');
+    fileName=dir('*_ls_0*'); % get all the text files end with . =dir('Run34 **/*.txt');
     if isempty(fileName); fprintf(' >!>!>! error in identifying the txt files in this directory!\n');end
     fileName={fileName(~[fileName.isdir]).name};
     
@@ -15,7 +15,7 @@ clear ; clc;
     if detNo==4;
         Det="2NPL";
     elseif detNo==0;
-        Det="UCL";
+        Det="UCL_b1500";
     end
         
 
@@ -25,7 +25,7 @@ clear ; clc;
 
 iF=1; % loop through all files 
 %for iF=1:1:length(fileName)
-for iF=1:1:5
+for iF=1:1:10
         recordType = {'uint32' 'int16' 'uint32' 'int16'};
         recordLen = [4 2 4 2];
         R = cell(1,numel(recordType));
@@ -159,11 +159,34 @@ for iF=1:1:5
                 eHfileName=sprintf('%s_EnHist_%s', Det, runNo);
                 saveas(gcf, eHfileName, 'fig');
                 
+                % plot the EnHist in log scale
+                f_log_eH=figure;
+                semilogy(eH_xaxis, eH_hist, 'bd:','LineWidth', 2, 'MarkerEdgeColor', 'k', 'MarkerSize', 2);
+%                 eB=errorbar(eH_xaxis, eH_hist, eH_err);
+%                 eB.Color='black';
+                str={strcat('1 bin = ', num2str(round(eH_edge(2),1)));
+                     strcat('noEvts = ', num2str(length(nQlong)))};
+%                 annotation(f1, 'textbox', [.3 .3 .3 .1], 'String', str , 'FontSize', 10, 'FontWeight', 'bold', 'BackgroundColor', 'w');
+                annotation(f_eH, 'textbox', [0.5 0.7 0.3 0.1],'FitBoxToText', 'on', 'String', str , 'FontSize', 10, 'FontWeight', 'bold', 'BackgroundColor', 'w');             
+                grid on;
+                xlabel('Qlong (a.u.)'); 
+                ylabel('Counts');
+                axis tight;
+                FontWeight= 'bold';
+                FontSize= 50;
+                set(gca, 'FontSize', 18, 'FontWeight', 'bold', 'LineWidth', 2);
+                pbaspect([1.5 1 1]);
+
+                 set(f_log_eH, 'PaperUnits', 'centimeter', 'PaperPosition', [0 0 15 10]);
+                % extract the run number from the fileName
+                %runNo=string(extractBetween(fileName(iF), "Run__", "_ls"));
+                eHfileName=sprintf('%s_LogEnHist_%s', Det, runNo);
+                saveas(gcf, eHfileName, 'fig');
                 close all;
-                clear('f_eH','eHfileName','FontSize', 'str', 'eB', 'eHfileName');
+                clear('f_*','eHfileName','FontSize', 'str', 'eB', 'eHfileName');
                 
 % Part3: *** ___ FoM calculation ___ ***   
-                foM_psd_nBin=1000;
+                foM_psd_nBin=1500;
                 foM_psd_edge=linspace(0, 1, foM_psd_nBin);
                 foM_psd_xaxis=foM_psd_edge(1:end-1)+diff(foM_psd_edge)./2;
                 foM_hist=histcounts(nPSD, foM_psd_edge);
@@ -195,6 +218,11 @@ for iF=1:1:5
                 title(str, 'FontSize', 10)
                 %lgd=legend(str, 'Location','southoutside', 'FontSize', 10 );
                 
+                set(f_foM, 'PaperUnits', 'centimeter', 'PaperPosition', [0 0 15 10]);
+                % extract the run number from the fileName
+                %runNo=string(extractBetween(fileName(iF), "Run__", "_ls"));
+                eHfileName=sprintf('%s_FoM_%s', Det, runNo);
+                saveas(gcf, eHfileName, 'fig');
                 
                 close all;
                 clear('f_foM','eH*', 'str', 'foM*', 'gauFitCoeff');

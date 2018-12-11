@@ -13,9 +13,9 @@ clear ; clc;
     
     detNo=str2num(string(extractBetween(fileName(1), "ls_", ".dat")));
     if detNo==4;
-        Det="2NPL";
+        Det="NPL";
     elseif detNo==0;
-        Det="UCL_b1500";
+        Det="UCL";
     end
         
 
@@ -25,7 +25,7 @@ clear ; clc;
 
 iF=1; % loop through all files 
 %for iF=1:1:length(fileName)
-for iF=1:1:10
+for iF=1:1:length(fileName)
         recordType = {'uint32' 'int16' 'uint32' 'int16'};
         recordLen = [4 2 4 2];
         R = cell(1,numel(recordType));
@@ -54,6 +54,7 @@ for iF=1:1:10
         nPSD=PSD(PSD>0 & PSD <1 & Qlong>0);      
         
         clear('Qlong','Qshort','PSD', 'R');
+        
 % Part1: *** ___ Calculate the acqTime ___ ***
          % Method 3: calculate the nCycle. tot_AcqT= nCycle*2^32
                 nCycle=0;
@@ -129,7 +130,7 @@ for iF=1:1:10
         clear('f1','R','EvtspC','Header', 'i', 'iS', 'nCycle', 'peaktS', 'recordLen', 'recordType', 'troughtS', 'timeStamp', 'str', 'fid', 'cnEvt', 'tSfileName' )
 
 % Part2: *** ___ Energy Histogram ___ ***
-                eH_nbin=uint16(1000);
+                eH_nbin=uint16(2000);
                 max_chNo=2^15-1;
                 eH_edge=linspace(0, max_chNo, eH_nbin);
                 eH_xaxis=eH_edge(1:end-1)+ diff(eH_edge)./2;
@@ -141,7 +142,8 @@ for iF=1:1:10
 %                 eB=errorbar(eH_xaxis, eH_hist, eH_err);
 %                 eB.Color='black';
                 str={strcat('1 bin = ', num2str(round(eH_edge(2),1)));
-                     strcat('noEvts = ', num2str(length(nQlong)))};
+                     strcat('noEvts = ', num2str(length(nQlong)));
+                     strcat('noEvts = ', num2str(eH_nbin))};
 %                 annotation(f1, 'textbox', [.3 .3 .3 .1], 'String', str , 'FontSize', 10, 'FontWeight', 'bold', 'BackgroundColor', 'w');
                 annotation(f_eH, 'textbox', [0.5 0.7 0.3 0.1],'FitBoxToText', 'on', 'String', str , 'FontSize', 10, 'FontWeight', 'bold', 'BackgroundColor', 'w');             
                 grid on;
@@ -162,12 +164,7 @@ for iF=1:1:10
                 % plot the EnHist in log scale
                 f_log_eH=figure;
                 semilogy(eH_xaxis, eH_hist, 'bd:','LineWidth', 2, 'MarkerEdgeColor', 'k', 'MarkerSize', 2);
-%                 eB=errorbar(eH_xaxis, eH_hist, eH_err);
-%                 eB.Color='black';
-                str={strcat('1 bin = ', num2str(round(eH_edge(2),1)));
-                     strcat('noEvts = ', num2str(length(nQlong)))};
-%                 annotation(f1, 'textbox', [.3 .3 .3 .1], 'String', str , 'FontSize', 10, 'FontWeight', 'bold', 'BackgroundColor', 'w');
-                annotation(f_eH, 'textbox', [0.5 0.7 0.3 0.1],'FitBoxToText', 'on', 'String', str , 'FontSize', 10, 'FontWeight', 'bold', 'BackgroundColor', 'w');             
+                annotation(f_log_eH, 'textbox', [0.5 0.7 0.3 0.1],'FitBoxToText', 'on', 'String', str , 'FontSize', 10, 'FontWeight', 'bold', 'BackgroundColor', 'w');             
                 grid on;
                 xlabel('Qlong (a.u.)'); 
                 ylabel('Counts');
@@ -186,7 +183,7 @@ for iF=1:1:10
                 clear('f_*','eHfileName','FontSize', 'str', 'eB', 'eHfileName');
                 
 % Part3: *** ___ FoM calculation ___ ***   
-                foM_psd_nBin=1500;
+                foM_psd_nBin=2000;
                 foM_psd_edge=linspace(0, 1, foM_psd_nBin);
                 foM_psd_xaxis=foM_psd_edge(1:end-1)+diff(foM_psd_edge)./2;
                 foM_hist=histcounts(nPSD, foM_psd_edge);
@@ -195,17 +192,21 @@ for iF=1:1:10
                 yfoM_fit=feval(foM_fit, foM_psd_xaxis);
                 
                 gauFitCoeff=coeffvalues(foM_fit);
+                y_eqt1=gauFitCoeff(1)*exp(-((foM_psd_xaxis-gauFitCoeff(2))/gauFitCoeff(3)).^2);
+                y_eqt2=gauFitCoeff(4)*exp(-((foM_psd_xaxis-gauFitCoeff(5))/gauFitCoeff(6)).^2);
                 
                 f_foM= figure; 
                 histogram(nPSD, foM_psd_nBin); hold on
                 plot(foM_psd_xaxis.', yfoM_fit, 'r--', 'LineWidth', 2);
+                plot(foM_psd_xaxis, y_eqt1, 'g:', 'LineWidth', 2);
+                plot(foM_psd_xaxis, y_eqt2, 'M:', 'LineWidth', 2);
                 xlabel('PSD (a.u.)');
                 ylabel('Frequency (a.u.)');
                 xlim([0 0.5]);
                 grid on;
                 set(gca, 'FontSize', 18, 'FontWeight', 'bold', 'LineWidth', 2);
                 pbaspect([1.5 1 1]);
-                str={strcat('Tot. evts= ', num2str(length(nQlong))), ...
+                str={strcat('Tot. evts= ', num2str(length(nQlong)), 'nBin = ', num2str(length(foM_psd_nBin))), ...
                      strcat('Mean1= ', num2str(round(gauFitCoeff(2),4)),'|',...
                      'Mean2= ', num2str(round(gauFitCoeff(5),4)),'|'),...
                      strcat('FWHM1= ', num2str(round(2.35*gauFitCoeff(3)/2, 4)),'|',...
@@ -271,13 +272,18 @@ for iF=1:1:10
                 clear('f_TDSP','Data1','eHfileName','h1', 'hplot', 'hr1', 'xb', 'yb', 'str', 'TD_nBin', 'nQlong', 'nQshort', 'nPSD');
                 
           
-% Part5: *** ___ Output the Acquisition time in a text file ___ ***
-                C=cat(2,fileName(1:length(AcqT3_s))', num2cell(round(AcqT3_s,1))' );
-                acqT_table=cell2table(C, 'VariableNames', {'fileName', 'AcqT3_s'});
-                acq_fN=sprintf('%s Acq Time.txt', Det);
-                writetable(acqT_table, acq_fN, 'Delimiter', '\t');
-                
+               
                 runTime=round(toc);
                 fprintf('%d file done. runtTime=%d \n', iF, runTime);
                 iF=iF+1;     
 end
+
+% Part5: *** ___ Output the Acquisition time in a text file ___ ***
+                C=cat(2,fileName(1:length(AcqT3_s))', num2cell(round(AcqT3_s,1))' );
+                acqT_table=cell2table(C, 'VariableNames', {'fileName', 'AcqT3_s'});
+                acq_fNx=sprintf('%s Acq Time.xlsx', Det); % output excel
+                writetable(acqT_table, acq_fNx, 'sheet', 1);
+                
+                acq_fN=sprintf('%s Acq Time.txt', Det);
+                writetable(acqT_table, acq_fN, 'Delimiter', '\t'); % output txt
+                
